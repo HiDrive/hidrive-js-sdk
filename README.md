@@ -1,4 +1,3 @@
-
 # HiDrive JavaScript SDK #
 ## Introduction ##
 
@@ -31,19 +30,6 @@ Or:
 ###Basic use
 
 hidrive-js-sdk is exposed as a global variable `HD`.
-
-To start using the SDK just add this script to your HTML and initialize the client with your own:
-
-```js
-HD.options({ 'appSecret': YOUR_APP_SECRET }); 
-HD.options({ 'appId': YOUR_APP_ID });
-HD.options({ 'type': 'refresh_token' });
-HD.options({ 'grantScope': 'admin,rw' });
-HD.options({ 'redirectUrl': 'http://localhost:12345/' });
-HD.options({ 'language': 'en' });
-```
-
-Set the appropriate parameters before requesting API.
 
 ### Configuration options
 
