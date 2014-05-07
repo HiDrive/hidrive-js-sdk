@@ -20,21 +20,20 @@
 * <p>
 * To start using the SDK just add this script to your HTML and initialize the client with your own:
 * <ul>
-* <li>application Id</li>
-* <li>application secret</li>
+* <li>client Id</li>
 * <li>grant scope</li>
-* <li>grant type</li>
+* <li>response type</li>
 * <li>redirection URL</li>
 * <li>language for the login dialog</li>
 * </ul>
 * </p>
 * 
 * <code>
-* HD.options({ 'appSecret': YOUR_APP_SECRET }); </br>
-* HD.options({ 'appId': YOUR_APP_ID });</br>
-* HD.options({ 'type': 'refresh_token' });</br>
+* HD.options({ 'clientId': YOUR_CLIENT_ID });</br>
+* HD.options({ 'responseType': 'token' });</br>
 * HD.options({ 'grantScope': 'admin,rw' });</br>
-* HD.options({ 'redirectUrl': 'http://localhost:12345/' });</br>
+* HD.options({ 'redirectUri': 'http://localhost:12345/' });</br>
+* HD.options({ 'state': 'STATE' });</br>
 * HD.options({ 'language': 'en' });</br>
 * </code>
 * 
@@ -48,7 +47,6 @@ var HD = (function () {
         getOAuthUrl,
         sendRequest,
         getMe,
-        refreshAccessToken,
         logout,
         sessionClear,
         get,
@@ -57,25 +55,24 @@ var HD = (function () {
         put,
         del,
         getRequestData,
-        getRefreshToken,
         getFileTransactionUrl,
         getParameters,
         options,
         has,
         xhr,
         getApiUrl,
+        getTokenInfo,
         opts = {
             'accessToken': null,
-            'appId': null,
-            'appSecret': null,
+            'clientId': null,
+            'responseType': null,
             'userScope': null,
             'grantScope': null,
-            'type': null,
-            'redirectUrl': null,
+            'redirectUri': null,
+            'state': null,
             'language': null,
             'userName': null,
             'accountId': null,
-            'refreshToken': null,
             'apiUrl': null
         };
 
@@ -155,88 +152,6 @@ var HD = (function () {
     };
 
     /**
-    * @description
-    * 
-    * Makes a call to refresh a access token. An access token is valid until it expires.
-    * For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
-    *
-    * @example 
-    *   For example, suppose you want refresh the access token:
-    *   
-    *    var refreshToken = HD.options('refreshToken');
-    *    HD.refreshAccessToken(refreshToken, function(response){
-    *       //do something with response.access_token
-    *    }, function(){
-    *    });
-    *
-    * @access public
-    * @function
-    * @param {String} token Parameter obtained during a previous authorization code exchange. For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
-    * @param {Function} [successCb] Success callback function. 
-    * @param {Function} [errorCb] Error callback function
-    */
-    refreshAccessToken = function (token, successCb, errorCb) {
-        var parameters = {
-            refresh_token: token || options('refreshToken'),
-            grant_type: options('type'),
-            client_id: options('appId'),
-            client_secret: options('appSecret')
-        };
-
-        base("POST", "/token", parameters, function (response) {
-            options({ 'accessToken': response.access_token });
-            options({ 'userName': response.alias });
-            successCb(response);
-        }, function (result) {
-            errorCb(result);
-        }, function () {
-        });
-    };
-
-    /**
-    * Makes a call to get a refresh token. This function should be called after oAuth to get the new refresh token.
-    * For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
-    *
-    *    @example
-    *    After the successful login process a code parameter will be delivered. 
-    *    With this code you can request a refresh token.   
-    *
-    *    var loginSuccess = function (result) {   
-    *        HD.refreshAccessToken(result.code, function(response) {
-    *           //do something with response.refresh_token
-    *       }, function(){
-    *       });
-    *    }
-    *
-    * @access public
-    * @function
-    * @param {String} [code] Parameter obtained during a previous authorization code exchange. For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
-    * @param {Function} [successCb] Success callback function. 
-    * @param {Function} [errorCb] Error callback function
-    */
-    getRefreshToken = function (code, successCb, errorCb) {
-        var parameters = {
-            code: code,
-            grant_type: "authorization_code",
-            client_id: options('appId'),
-            client_secret: options('appSecret')
-        };
-
-        base("POST", "/token", parameters, function (response) {
-            options({ 'refreshToken': response.refresh_token });
-            options({ 'accessToken': response.access_token });
-            getMe(function (result) {
-                successCb(result);
-            }, function (result) {
-                errorCb(result);
-            });
-        }, function (result) {
-            errorCb(result);
-        }, function () {
-        });
-    };
-
-    /**
     * Makes a call to clear session configuration options.
     * The following parameters are deleted:
     * <ul>
@@ -244,7 +159,6 @@ var HD = (function () {
     * <li>'userName'</li>
     * <li>'accountId'</li>
     * <li>'userScope'</li>
-    * <li>'refreshToken'</li>
     * </ul>
     *
     * @access public
@@ -255,7 +169,6 @@ var HD = (function () {
         options({ 'userName': undefined });
         options({ 'accountId': undefined });
         options({ 'userScope': undefined });
-        options({ 'refreshToken': undefined });
     };
 
     /**
@@ -266,7 +179,20 @@ var HD = (function () {
     * @returns {String} Returns string with url.
     */
     getLoginUrl = function () {
-        return getOAuthUrl() + '/authorize?response_type=code'; 
+        var url = getOAuthUrl() + '/authorize?response_type=' + HD.options('responseType') + "&client_id=" + HD.options('clientId');
+        if (HD.options('grantScope') !== undefined) {
+            url += "&scope=" + HD.options('grantScope');
+        }
+        if (HD.options('redirectUri') !== undefined) {
+            url += "&redirect_uri=" + HD.options('redirectUri');
+        }
+        if (HD.options('state') !== undefined) {
+            url += "&state=" + HD.options('state');
+        }
+        if (HD.options('language') !== undefined) {
+            url += "&lang=" + HD.options('language');
+        }
+        return url;
     };
 
     /**
@@ -277,7 +203,7 @@ var HD = (function () {
     * @returns {String} Returns string with url.
     */
     getOAuthUrl = function () {
-       return 'https://www.hidrive.strato.com/oauth2';
+        return 'https://www.hidrive.strato.com/oauth2';
     };
 
     /**
@@ -307,7 +233,7 @@ var HD = (function () {
     };
 
     /**
-    * Makes a call to get or sets configuration options (access token, user name, account id, user scope, application id, application secret ).
+    * Makes a call to get or sets configuration options (access token, user name, accound id, user scope, client id).
     *
     * @example
     * When this method is called with no parameters it will return all of the 
@@ -316,11 +242,11 @@ var HD = (function () {
     *
     * When this method is called with a string it will return the value of the option 
     * if exists, null if it does not.      
-    *   var applicationId = HD.options('appId');
+    *   var clientId = HD.options('clientId');
     *
     * When this method is called with an object it will merge the object onto the previous 
     * options object.      
-    *   HD.options({appId: '123456'}); 
+    *   HD.options({clientId: '123456'}); 
     *   HD.options({userName: 'ABC', accessToken: 'XYZ'}); //will set userName and
     *                                                        accessToken options
     *   var accessToken = HD.options('accessToken'); //will get the accessToken of 'XYZ'
@@ -330,19 +256,20 @@ var HD = (function () {
     * @param {String} keyOrOptions Returns the value of the option if exists, null if it does not. The existing options are:
     * <ul>
     * <li> 'accessToken': Access token. </li>
-    * <li> 'appId': Application id. </li>
+    * <li> 'responseType': Response type. </li>
+    * <li> 'clientId': Client id. </li>
     * <li> 'userScope': User scope.</li>
     * <li> 'grantScope': Grant scope.</li>
     * <li> 'type': Grant type.</li>
-    * <li> 'redirectUrl': Login redirect url for oAuth e.g. 'http://localhost:12345/'.</li>
+    * <li> 'redirectUri': Login redirect url for oAuth e.g. 'http://localhost:12345/'.</li>
+    * <li> 'state': this is an optional string of your choosing, which will be added untouched to the redirection data, to allow you to check the response validity
     * <li> 'language': Language for the login dialog.</li>
     * <li> 'user': The path to the file to download.</li>
     * <li> 'userName': User name.</li>
     * <li> 'accountId': Account id.</li>
-    * <li> 'refreshToken': Refresh token.</li>
     * </ul>
     * @returns {Object} When this method is called with no parameters it will return all of the current options e.g. HD.options().
-    * When this method is called with a string it will return the value of the option if exists, null if it does not e.g.options('appId').          
+    * When this method is called with a string it will return the value of the option if exists, null if it does not e.g.options('clientId').          
     */
     options = function (keyOrOptions) {
         var key;
@@ -366,28 +293,38 @@ var HD = (function () {
         if ((url.substr(0, "/token".length) === "/token") || (url.substr(0, "/revoke".length) === "/revoke")) {
             fullUrl = getOAuthUrl();
         }
-        
-        //var fullUrl = (url.substr(0, "/token".length) === "/token") || (url.substr(0, "/revoke".length) === "/revoke") ? getOAuthUrl() : getApiUrl();
+
         fullUrl += url;
         return fullUrl;
     };
-    
+
     /**
-    * Makes a call to clear the session data(access token, user name, account id, user scope) and revokes exists refresh token.
+    * Makes a call to clear the session data(access token, user name, accound id, user scope).
     *
     * @access public
     * @function
     */
     logout = function () {
-        var parameters = {
-            token: options('refreshToken'),
-            type: "refresh",
-            client_id: options('appId'),
-            client_secret: options('appSecret')
-        };
-        base("POST", "/revoke", parameters, function () { }, function () { }, function () { });
-
         sessionClear();
+    };
+
+    /**
+    * Makes a call to get information about your current access_token.
+    *
+    * @access public
+    * @function
+    */
+    getTokenInfo = function (successCb, errorCb, progressCb) {
+        var parameters = {
+            access_token: options('accessToken')
+        };
+        base("POST", "/tokeninfo", parameters, function (result) {
+            successCb(result);
+        }, function (result) {
+            errorCb(result);
+        }, function (result) {
+
+        });
     };
 
     /**
@@ -406,8 +343,9 @@ var HD = (function () {
     *       });
     *
     *   Create a new share link for a given file:
-    *   For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/ 
-    *   
+    *   For more details see the HiDrive API Docomentation 
+    *   https://dev.strato.com/hidrive/api-reference/
+    *
     *       var parameters = { path: "root/users/foobar/mySharefile.ext", type: "file",
     *                        ttl: 86400, maxcount: 50};
     *       HD.post("/sharelink", parameters, function(response){
@@ -420,8 +358,8 @@ var HD = (function () {
     *
     * @access public
     * @function
-    * @param {String} [path] The path. For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
-    * @param {Object} [parameters] A JSON object containing the properties. For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
+    * @param {String} [path] The path. For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
+    * @param {Object} [parameters] A JSON object containing the properties. For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
     * @param {Function} [successCb] The callback function that is invoked when API call is successful.
     * @param {Function} [errorCb] The callback function that is invoked when API call is failed.
     * @param {Function} [progressCb] The callback function that is invoked for handling of progress notifications along the way.
@@ -447,8 +385,8 @@ var HD = (function () {
     *
     * @access public
     * @function
-    * @param {String} [path] The path For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
-    * @param {Object} [parameters] A JSON object containing the properties. For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
+    * @param {String} [path] The path For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
+    * @param {Object} [parameters] A JSON object containing the properties. For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
     * @param {Function} [successCb] The callback function that is invoked when API call is successful.
     * @param {Function} [errorCb] The callback function that is invoked when API call is failed.
     * @param {Function} [progressCb] The callback function that is invoked for handling of progress notifications along the way.
@@ -474,8 +412,8 @@ var HD = (function () {
     *
     * @access public
     * @function
-    * @param {String} [path] The path For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
-    * @param {Object} [parameters] A JSON object containing the properties. For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
+    * @param {String} [path] The path For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
+    * @param {Object} [parameters] A JSON object containing the properties. For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
     * @param {Function} [successCb] The callback function that is invoked when API call is successful.
     * @param {Function} [errorCb] The callback function that is invoked when API call is failed.
     * @param {Function} [progressCb] The callback function that is invoked for handling of progress notifications along the way.
@@ -517,7 +455,7 @@ var HD = (function () {
     };
 
     /**
-    * Makes a call to get a access token string for authorization process. This value should be passed to the XHR call options parameter.
+    * Makes a call to get a access token string for autorization process. This value should be passed to the XHR call options parameter.
     * 
     * @access public
     * @returns {String} String that contains a authorization header "Bearer myaccesstoken" 
@@ -546,8 +484,8 @@ var HD = (function () {
     *       });
     *
     *   Get corresponding sharelink:
-    *   For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/ 
-    *   https://dev.strato.com/hidrive/documentation/
+    *   For more details see the HiDrive API Docomentation 
+    *   https://dev.strato.com/hidrive/api-reference/
     *       
     *       var parameters = { id: '123456' };
     *       HD.get("/sharelink", parameters, function(response){
@@ -560,8 +498,8 @@ var HD = (function () {
     *
     * @access public
     * @function
-    * @param {String} [path] The path. For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
-    * @param {Object} [parameters] A JSON object containing the properties. For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
+    * @param {String} [path] The path. For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
+    * @param {Object} [parameters] A JSON object containing the properties. For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
     * @param {Function} [successCb] The callback function that is invoked when API call is successful.
     * @param {Function} [errorCb] The callback function that is invoked when API call is failed.
     * @param {Function} [progressCb] The callback function that is invoked for handling of progress notifications along the way.
@@ -605,47 +543,14 @@ var HD = (function () {
                     obj.status = result.status;
                 } catch (e) {
                 }
-                if (result.status === 401) {
-                    //try to refresh token 
-                    refreshAccessToken(null, function () {
-                        //try again
-                        absoluteUrl = getFullUrl(path);
-                        data = getRequestData(parameters, options('accessToken'));
-                        if (data.data) {
-                            absoluteUrl += "?" + data.data;
-                        }
-                        sendRequest({ type: "GET", url: absoluteUrl, authzheader: data.oAuthHeader },
-                            // success
-                            function (innerResult) {
-                                var obj2 = innerResult.responseText;
-                                if (innerResult.status === 200 || innerResult.status === 201) {
-                                    try {
-                                        obj2 = JSON.parse(obj2);
-                                    } catch (ex) {
-                                    } finally {
-                                        successCb(obj2);
-                                    }
-                                } else {
-                                    errorCb(obj2);
-                                }
-                            }, function (innerResult) {
-                                errorCb(innerResult);
-                            });
-                    }, function (innerResult) {
-                        errorCb(innerResult);
-                    });
-                } else {
-                    errorCb(obj);
-                }
+                errorCb(obj);
             },
             progressCb());
     };
 
     base = function (verb, url, parameters, successCb, errorCb, progressCb) {
-        var absoluteUrl,
-            data;
+        var absoluteUrl;
         absoluteUrl = getFullUrl(url);
-        data = getRequestData(parameters, options('accessToken'));
         sendRequest({ type: verb, url: absoluteUrl, authzheader: getAuthorizationHeader(), data: parameters }, function (result) {
             if (result.status === 200 || result.status === 201) {
                 var obj = result.responseText;
@@ -667,36 +572,7 @@ var HD = (function () {
                 obj.status = result.status;
             } catch (e) {
             }
-            if (result.status === 401) {
-                //try to refresh token  
-                refreshAccessToken(null, function () {
-                    //try again
-                    absoluteUrl = getFullUrl(url);
-                    data = getRequestData(parameters, options('accessToken'));
-                    if (data.data) {
-                        absoluteUrl += "?" + data.data;
-                    }
-                    sendRequest({ type: verb, url: absoluteUrl, authzheader: data.oAuthHeader }, function (innerResult) {
-                        if (innerResult.status === 200 || innerResult.status === 201) {
-                            var obj2 = innerResult.responseText;
-                            try {
-                                obj2 = JSON.parse(obj2);
-                            } catch (e) {
-                            } finally {
-                                successCb(obj2);
-                            }
-                        } else {
-                            errorCb(result);
-                        }
-                    }, function (innerResult) {
-                        errorCb(innerResult);
-                    });
-                }, function (innerResult) {
-                    errorCb(innerResult);
-                });
-            }else {
-                errorCb(obj);
-            }
+            errorCb(obj);
         }, progressCb());
     };
 
@@ -814,7 +690,7 @@ var HD = (function () {
     * <li> width: Optional. Maximum width of the thumbnail</li>
     * <li> height: Optional. Maximum height of the thumbnail</li>
     * <li> snapshot: Optional. Name of snapshot</li>
-    * For more details see the HiDrive API Documentation https://dev.strato.com/hidrive/documentation/
+    * For more details see the HiDrive API Docomentation https://dev.strato.com/hidrive/api-reference/
     * @param {Function} [successCb] The callback function that is invoked when API call is successful.
     * @param {Function} [errorCb] The callback function that is invoked when API call is failed.
     * @param {Function} [progressCb] The callback function that is invoked for handling of progress notifications along the way.
@@ -918,12 +794,11 @@ var HD = (function () {
         put: put,
         "delete": del,
         getAuthorizationHeader: getAuthorizationHeader,
-        refreshAccessToken: refreshAccessToken,
         getFile: getFile,
         getThumbnail: getThumbnail,
-        getRefreshToken: getRefreshToken,
         sessionClear: sessionClear,
         getFullUrl: getFullUrl,
         getFileTransactionUrl: getFileTransactionUrl,
+        getTokenInfo: getTokenInfo
     };
 })();
