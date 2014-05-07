@@ -41,10 +41,11 @@ For documentation on how to, please see the HiDrive developer portal https://dev
 Set the following parameters before requesting API for authorization.
 
 ```js
-HD.options({ 'appId': YOUR_APP_ID });
+HD.options({ 'appId': YOUR_CLIENT_ID });
 HD.options({ 'responseType': 'token' });
 HD.options({ 'grantScope': 'admin,rw' });
-HD.options({ 'redirectUrl': 'http://localhost:12345/' });
+HD.options({ 'redirectUri': 'http://localhost:12345/' });
+HD.options({ 'state': 'STATE' });
 HD.options({ 'language': 'en' });
 ```
 
@@ -91,7 +92,8 @@ The existing options are:
 * `'userScope'`: User scope.
 * `'grantScope'`: Grant scope.
 * `'type'`: Grant type.
-* `'redirectUrl'`: Login redirect url for oAuth e.g. 'http://localhost:12345/'.
+* `'redirectUri'`: Login redirect url for oAuth e.g. 'http://localhost:12345/'.
+* `'state'`: State. 
 * `'language'`: Language for the login dialog.
 * `'user'`: The path to the file to download.
 * `'userName'`: User name.
