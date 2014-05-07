@@ -1,3 +1,4 @@
+
 # HiDrive JavaScript SDK #
 ## Introduction ##
 
@@ -25,7 +26,33 @@ Or:
 
     <script type="text/javascript" src="/yourpath/sdk.min.js"></script>
 
-##Usage##
+##Browser Usage##
+
+###Getting Started
+
+You can find a getting started guide at:
+
+https://dev.strato.com/hidrive/getstarted
+
+###OAuth Requests
+
+For documentation on how to, please see the HiDrive developer portal https://dev.strato.com/hidrive/
+
+Set the following parameters before requesting API for authorization.
+
+```js
+HD.options({ 'appId': YOUR_APP_ID });
+HD.options({ 'responseType': 'token' });
+HD.options({ 'grantScope': 'admin,rw' });
+HD.options({ 'redirectUrl': 'http://localhost:12345/' });
+HD.options({ 'language': 'en' });
+```
+
+After authorization process you get an access_token. Store the access_token in options:
+```js
+HD.options({ 'accessToken': YOUR_ACCESS_TOKEN });
+```
+This access_token will be used for all further API requests.
 
 ###Basic use
 
@@ -69,10 +96,6 @@ The existing options are:
 * `'user'`: The path to the file to download.
 * `'userName'`: User name.
 * `'accountId'`: Account id.
-* `'refreshToken'`: Refresh token.
-
-###OAuth Requests
-For documentation on how to , please see the HiDrive developer portal. https://dev.strato.com/hidrive/
 
 ### API
 
@@ -194,28 +217,11 @@ HD.put("/user", parameters, function(response){
 });
 ``` 
 
-#### Get refresh token 
-Makes a call to get a refresh token. This function should be called after oAuth process to get the new refresh token.
+#### Get token info
+Makes a call to get information about your current access_token.
 
-After the successful login process a code parameter will be delivered. 
-With this code you can request a refresh token. After the function is finished the refresh token and user name are stored in HD.options.
 ```js
-var loginSuccess = function (result) {   
-   HD.refreshAccessToken(result.code, function(response) {
-      //do something with response.refresh_token
-  }, function(){
-      //error
-  });
-}
-```
-
-#### Refresh access token
-Makes a call to refresh a access token. An access token is valid until it expires.
-
-For example, suppose you want refresh the access token:
-```js
- var refreshToken = HD.options('refreshToken');
-   HD.refreshAccessToken(refreshToken, function(response){
+   HD.getTokenInfo(function(response){
       //do something with response.access_token
    }, function(){
       //error
@@ -223,11 +229,18 @@ For example, suppose you want refresh the access token:
 ```
 
 #### Session Clear
-Makes a call to clear session configuration options. The following parameters are deleted:
+Makes a call to clear session configuration options.
 
 ```js
 HD.sessionClear();
 ```
+
+The following parameters are deleted:
+* accessToken
+* userName
+* accountId
+* userScope
+
 #### Check authorization
 Makes a call to verify whether the current user is authorized or not.
 
@@ -236,7 +249,7 @@ HD.isAuthorized();
 ```
 
 #### Logout
-Makes a call to clear the session data(access token, user name, accound id, user scope) and revokes exists refresh token.
+Makes a call to clear the session data(access token, user name, accound id, user scope).
 
 ```js
 HD.logout();
